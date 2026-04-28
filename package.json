@@ -1,0 +1,22 @@
+{
+  "name": "biquette-designer-backend",
+  "version": "1.0.0",
+  "description": "Backend server for Biquette Custom Blanket Designer — handles Google Drive uploads and Shopify cart integration",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start":   "node server.js",
+    "dev":     "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "canvas":      "^2.11.2",
+    "cors":        "^2.8.5",
+    "dotenv":      "^16.3.1",
+    "express":     "^4.18.2",
+    "googleapis":  "^140.0.0",
+    "node-fetch":  "^3.3.2"
+  }
+}
