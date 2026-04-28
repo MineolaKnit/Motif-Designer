@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Biquette – Custom Blanket Designer</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cream:#f7f3ee;--ink:#1a1410;--muted:#7a6e64;
+  --gold:#c8a96e;--gold2:#e8c98a;--red:#c0392b;
+  --surface:#ffffff;--border:#e2d8cc;--radius:12px;
+}
+html,body{height:100%}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;overflow-x:hidden}
+header{background:var(--ink);color:var(--cream);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.logo{font-family:'Playfair Display',serif;font-size:1.5rem;letter-spacing:.04em;color:var(--gold2)}
+.logo span{color:var(--cream);font-weight:400;font-size:.9rem;margin-left:10px;opacity:.7}
+.hsteps{display:flex;gap:8px;align-items:center;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hstep{padding:4px 12px;border-radius:20px;transition:.3s}
+.hstep.active{background:var(--gold);color:var(--ink)}
+.sep{opacity:.3}
+.app{display:grid;grid-template-columns:270px 1fr 290px;height:calc(100vh - 61px)}
+.panel{background:var(--surface);overflow-y:auto;padding:18px}
+.panel-l{border-right:1px solid var(--border)}
+.panel-r{border-left:1px solid var(--border)}
+.ptitle{font-family:'Playfair Display',serif;font-size:1rem;margin-bottom:4px}
+.psub{font-size:.74rem;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.mcounter{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.mbadge{background:var(--ink);color:var(--gold2);font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:20px}
+/* Motif grid — thumbnails drawn on small canvases */
+.mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.mthumb{aspect-ratio:1;border:2px solid var(--border);border-radius:8px;cursor:grab;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:.2s;position:relative;background:var(--cream)}
+.mthumb:active{cursor:grabbing}
+.panel-l.drop-target{background:#fdf6ec;outline:2px dashed var(--gold);outline-offset:-4px}
+.panel-l.drop-target .ptitle::after{content:' — drop here to remove';color:var(--gold);font-size:.7rem;font-family:'DM Sans',sans-serif;font-weight:400}
+.mthumb:hover{border-color:var(--gold);transform:scale(1.05)}
+.mthumb.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,169,110,.35);cursor:default}
+.mthumb.disabled{opacity:.35;cursor:not-allowed;transform:none}
+.mthumb canvas{width:100%;height:100%;display:block}
+.cbadge{position:absolute;top:2px;right:2px;background:var(--gold);color:var(--ink);width:16px;height:16px;border-radius:50%;font-size:.6rem;display:flex;align-items:center;justify-content:center;font-weight:700}
+.canvas-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:#ece7e0;gap:14px}
+.clabel{font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+#blanketCanvas{background:#fff;border-radius:12px;box-shadow:0 8px 48px rgba(26,20,16,.18),0 0 0 1px var(--border);touch-action:none;cursor:default;display:block}
+.chint{font-size:.71rem;color:var(--muted);text-align:center;max-width:360px;line-height:1.6}
+.color-sec{margin-bottom:16px}
+.ctitle{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:9px}
+.pgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.swatch{aspect-ratio:1;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.2s;position:relative}
+.swatch:hover{transform:scale(1.15)}
+.swatch.sel{border-color:var(--ink);box-shadow:0 0 0 2px var(--gold)}
+.sel-list{display:flex;flex-direction:column;gap:7px}
+.sel-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--cream);border-radius:8px;border:1px solid var(--border);font-size:.77rem}
+.sel-row canvas{width:28px;height:28px;flex-shrink:0;border-radius:4px}
+.sel-name{flex:1;font-weight:500}
+.cdot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.15);cursor:pointer;flex-shrink:0}
+.rmv{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px;border-radius:4px;transition:.2s}
+.rmv:hover{color:var(--red);background:#fdecea}
+.empty{color:var(--muted);font-size:.77rem;text-align:center;padding:20px 10px;line-height:1.7}
+.btn{width:100%;padding:11px 20px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;transition:.2s;letter-spacing:.03em}
+.btn-ink{background:var(--ink);color:var(--gold2)}
+.btn-ink:hover{background:#2d2520}
+.btn-ink:disabled{opacity:.4;cursor:not-allowed}
+.btn-out{background:transparent;color:var(--ink);border:1.5px solid var(--border);margin-top:7px}
+.btn-out:hover{border-color:var(--gold);background:#fdf9f4}
+.btn-gold{background:var(--gold);color:var(--ink);margin-top:7px}
+.btn-gold:hover{background:var(--gold2)}
+.btn-gold:disabled{opacity:.4;cursor:not-allowed}
+.sbar{font-size:.74rem;color:var(--muted);text-align:center;padding:5px 0;min-height:20px}
+.sbar.ok{color:#2e7d32}.sbar.err{color:var(--red)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(26,20,16,.55);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:16px;padding:36px 32px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.modal h2{font-family:'Playfair Display',serif;font-size:1.3rem;margin-bottom:10px}
+.modal p{font-size:.84rem;color:var(--muted);line-height:1.7;margin-bottom:18px}
+.spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 18px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.urlbox{background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:9px 13px;font-size:.71rem;word-break:break-all;text-align:left;color:var(--muted);margin-bottom:7px}
+/* color picker popup */
+.cpop{display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;box-shadow:0 4px 24px rgba(26,20,16,.12);z-index:300;width:196px}
+.cpop.open{display:block}
+.cpop-title{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:9px}
+.cpop-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.cpsw{aspect-ratio:1;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s}
+.cpsw:hover{transform:scale(1.2);border-color:var(--ink)}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+/* ghost drag */
+#drag-ghost{position:fixed;pointer-events:none;z-index:9999;transition:opacity .12s;display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Biquette <span>Custom Blanket Studio</span></div>
+  <div class="hsteps">
+    <span class="hstep active" id="s1">① Choose Motifs</span>
+    <span class="sep">›</span>
+    <span class="hstep" id="s2">② Assign Colors</span>
+    <span class="sep">›</span>
+    <span class="hstep" id="s3">③ Submit Design</span>
+  </div>
+</header>
+
+<div class="app">
+  <!-- LEFT: motif library -->
+  <div class="panel panel-l">
+    <div class="ptitle">Motif Library</div>
+    <p class="psub">Click or drag a motif onto the canvas. Choose exactly <strong>9</strong>.</p>
+    <div class="mcounter">
+      <span class="psub" style="margin:0">Selected</span>
+      <span class="mbadge" id="motifCount">0 / 9</span>
+    </div>
+    <div class="mgrid" id="motifGrid"></div>
+  </div>
+
+  <!-- CENTER: canvas -->
+  <div class="canvas-wrap">
+    <div class="clabel">Your Design Canvas</div>
+    <canvas id="blanketCanvas" width="540" height="540"></canvas>
+    <div class="chint"><strong>Click</strong> a motif to auto-place · <strong>Drag</strong> from library to position freely · <strong>Drag</strong> placed motifs to reposition</div>
+  </div>
+
+  <!-- RIGHT: colors & actions -->
+  <div class="panel panel-r">
+    <div class="ptitle">Background Color</div>
+    <div class="color-sec">
+      <div class="pgrid" id="bgPalette"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="ptitle" style="margin-bottom:4px">Your 9 Motifs</div>
+    <p class="psub">Click the color dot to change a motif's color. Max 4 colors.</p>
+    <div class="sel-list" id="selList">
+      <div class="empty">No motifs yet.<br>Pick 9 from the library.</div>
+    </div>
+    <div class="divider"></div>
+    <div class="color-sec">
+      <div class="ctitle">Colors in use (<span id="colorCount">0</span>/4)</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap" id="usedColors"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="sbar" id="sbar">Choose 9 motifs to begin.</div>
+    <button class="btn btn-out" id="resetBtn">↺ Reset Design</button>
+    <button class="btn btn-gold" id="previewBtn" disabled>⬇ Download Preview</button>
+    <button class="btn btn-ink" id="submitBtn" disabled>✓ Save & Add to Cart</button>
+  </div>
+</div>
+
+<!-- drag ghost -->
+<canvas id="drag-ghost" width="72" height="72"></canvas>
+
+<!-- color popup -->
+<div class="cpop" id="cpop">
+  <div class="cpop-title">Motif color</div>
+  <div class="cpop-grid" id="cpopGrid"></div>
+</div>
+
+<!-- modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="spinner" id="spinner"></div>
+    <h2 id="mTitle">Saving…</h2>
+    <p id="mBody">Please wait.</p>
+    <div id="mUrls"></div>
+    <button class="btn btn-ink" id="mClose" style="display:none" onclick="closeModal()">← Back</button>
+    <button class="btn btn-gold" id="mCheckout" style="display:none">Proceed to Checkout →</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════ */
+const CONFIG = {
+  backendUrl:    getParam('backend') || 'http://localhost:3000',
+  shopifyDomain: getParam('shop')    || 'biquette.myshopify.com',
+  variantId:     getParam('vid')     || '',
+  returnUrl:     getParam('ret')     || '',
+};
+function getParam(k){ return new URLSearchParams(location.search).get(k)||''; }
+
+/* ═══════════════════════════════════════════
+   30-COLOR PALETTE
+═══════════════════════════════════════════ */
+const PALETTE = [
+  {name:'Ivory',      hex:'#FFFFF0'},{name:'Cream',      hex:'#FFFDD0'},
+  {name:'Linen',      hex:'#FAF0E6'},{name:'Blush',      hex:'#FFCBA4'},
+  {name:'Coral',      hex:'#FF6F61'},{name:'Crimson',    hex:'#DC143C'},
+  {name:'Burgundy',   hex:'#800020'},{name:'Terracotta', hex:'#C07B54'},
+  {name:'Amber',      hex:'#FFBF00'},{name:'Goldenrod',  hex:'#DAA520'},
+  {name:'Mustard',    hex:'#E1AD01'},{name:'Sage',       hex:'#87AE73'},
+  {name:'Forest',     hex:'#228B22'},{name:'Emerald',    hex:'#50C878'},
+  {name:'Teal',       hex:'#008080'},{name:'Sky',        hex:'#87CEEB'},
+  {name:'Cobalt',     hex:'#0047AB'},{name:'Navy',       hex:'#001F5B'},
+  {name:'Indigo',     hex:'#4B0082'},{name:'Lavender',   hex:'#E6E6FA'},
+  {name:'Plum',       hex:'#8E4585'},{name:'Charcoal',   hex:'#36454F'},
+  {name:'Graphite',   hex:'#6B6B6B'},{name:'Silver',     hex:'#C0C0C0'},
+  {name:'Pearl',      hex:'#EAE0C8'},{name:'Stone',      hex:'#928E85'},
+  {name:'Chocolate',  hex:'#5C3317'},{name:'Espresso',   hex:'#3E1C00'},
+  {name:'Midnight',   hex:'#1A1A2E'},{name:'Onyx',       hex:'#0F0F0F'},
+];
+
+/* ═══════════════════════════════════════════
+   MOTIF DRAWING — pure Canvas 2D, synchronous
+   drawMotif(ctx, id, cx, cy, size, color)
+═══════════════════════════════════════════ */
+function drawMotif(ctx, id, cx, cy, size, color) {
+  const s = size / 60;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(s, s);
+  ctx.translate(-30, -30);          // origin = centre of 60×60 viewBox
+  ctx.fillStyle   = color;
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.globalAlpha = 1;
+
+  switch(id) {
+    case 1: { // Sun
+      ctx.beginPath(); ctx.arc(30,30,12,0,Math.PI*2); ctx.fill();
+      [0,45,90,135,180,225,270,315].forEach(a => {
+        const r=a*Math.PI/180;
+        ctx.beginPath();
+        ctx.moveTo(30+18*Math.cos(r),30+18*Math.sin(r));
+        ctx.lineTo(30+24*Math.cos(r),30+24*Math.sin(r));
+        ctx.stroke();
+      }); break; }
+
+    case 2: { // Moon (crescent via composite)
+      ctx.beginPath(); ctx.arc(30,30,14,0,Math.PI*2); ctx.fill();
+      ctx.globalCompositeOperation='destination-out';
+      ctx.beginPath(); ctx.arc(37,24,12,0,Math.PI*2); ctx.fill();
+      ctx.globalCompositeOperation='source-over';
+      break; }
+
+    case 3: { // Star
+      const sp=[[30,8],[35,22],[50,22],[38,31],[43,46],[30,37],[17,46],[22,31],[10,22],[25,22]];
+      ctx.beginPath(); sp.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
+      ctx.closePath(); ctx.fill(); break; }
+
+    case 4: { // Flower
+      [0,60,120,180,240,300].forEach(a=>{
+        const r=a*Math.PI/180, ex=30+12*Math.cos(r), ey=30+12*Math.sin(r);
+        ctx.save(); ctx.translate(ex,ey); ctx.rotate(r);
+        ctx.globalAlpha=.85;
+        ctx.beginPath(); ctx.ellipse(0,0,6,10,0,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      });
+      ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(30,30,7,0,Math.PI*2); ctx.fill(); break; }
+
+    case 5: { // Leaf
+      ctx.beginPath();
+      ctx.moveTo(30,52); ctx.quadraticCurveTo(10,30,20,12);
+      ctx.quadraticCurveTo(30,4,40,12); ctx.quadraticCurveTo(50,30,30,52);
+      ctx.fill();
+      const prev=ctx.strokeStyle; ctx.strokeStyle='rgba(255,255,255,0.7)';
+      ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(30,52); ctx.lineTo(30,16); ctx.stroke();
+      ctx.strokeStyle=prev; break; }
+
+    case 6: { // Butterfly
+      ctx.globalAlpha=.9;
+      ctx.beginPath(); ctx.moveTo(30,30); ctx.quadraticCurveTo(14,12,10,24); ctx.quadraticCurveTo(8,36,30,30); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(30,30); ctx.quadraticCurveTo(46,12,50,24); ctx.quadraticCurveTo(52,36,30,30); ctx.fill();
+      ctx.globalAlpha=.7;
+      ctx.beginPath(); ctx.moveTo(30,30); ctx.quadraticCurveTo(16,38,14,48); ctx.quadraticCurveTo(20,54,30,30); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(30,30); ctx.quadraticCurveTo(44,38,46,48); ctx.quadraticCurveTo(40,54,30,30); ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(30,30,2.5,0,Math.PI*2); ctx.fill(); break; }
+
+    case 7: { // Bird
+      ctx.beginPath();
+      ctx.moveTo(10,30); ctx.quadraticCurveTo(20,20,30,28);
+      ctx.quadraticCurveTo(40,20,50,30);
+      ctx.quadraticCurveTo(40,26,30,32); ctx.quadraticCurveTo(20,26,10,30);
+      ctx.fill();
+      ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(32,26,2,0,Math.PI*2); ctx.fill(); break; }
+
+    case 8: { // Heart
+      ctx.beginPath(); ctx.moveTo(30,46);
+      ctx.bezierCurveTo(10,34,8,20,20,16); ctx.bezierCurveTo(25,14,30,18,30,18);
+      ctx.bezierCurveTo(30,18,35,14,40,16); ctx.bezierCurveTo(52,20,50,34,30,46);
+      ctx.fill(); break; }
+
+    case 9: { // Diamond
+      ctx.beginPath();
+      [[30,8],[52,28],[30,52],[8,28]].forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
+      ctx.closePath(); ctx.fill(); break; }
+
+    case 10: { // Snowflake
+      [0,60,120].forEach(a=>{
+        const r=a*Math.PI/180;
+        ctx.beginPath(); ctx.moveTo(30+22*Math.cos(r),30+22*Math.sin(r)); ctx.lineTo(30-22*Math.cos(r),30-22*Math.sin(r)); ctx.stroke();
+        [-30,30].forEach(d=>{
+          const br=(a+d)*Math.PI/180;
+          ctx.beginPath(); ctx.moveTo(30+12*Math.cos(br),30+12*Math.sin(br)); ctx.lineTo(30+18*Math.cos(r),30+18*Math.sin(r)); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(30-12*Math.cos(br),30-12*Math.sin(br)); ctx.lineTo(30-18*Math.cos(r),30-18*Math.sin(r)); ctx.stroke();
+        });
+      }); break; }
+
+    case 11: { // Tree
+      ctx.beginPath(); ctx.moveTo(30,8); ctx.lineTo(44,32); ctx.lineTo(16,32); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(30,20); ctx.lineTo(46,42); ctx.lineTo(14,42); ctx.closePath(); ctx.fill();
+      ctx.fillRect(26,42,8,10); break; }
+
+    case 12: { // Mushroom
+      ctx.beginPath(); ctx.moveTo(14,34); ctx.quadraticCurveTo(14,14,30,13); ctx.quadraticCurveTo(46,14,46,34); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=.75; ctx.beginPath(); ctx.roundRect(24,34,12,14,3); ctx.fill(); ctx.globalAlpha=1; break; }
+
+    case 13: { // Wave
+      ctx.lineWidth=4;
+      ctx.beginPath(); ctx.moveTo(6,30); ctx.quadraticCurveTo(14,20,22,30); ctx.quadraticCurveTo(30,40,38,30); ctx.quadraticCurveTo(46,20,54,30); ctx.stroke();
+      ctx.globalAlpha=.45; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(6,38); ctx.quadraticCurveTo(14,28,22,38); ctx.quadraticCurveTo(30,48,38,38); ctx.quadraticCurveTo(46,28,54,38); ctx.stroke();
+      ctx.globalAlpha=1; break; }
+
+    case 14: { // Mountain
+      ctx.beginPath(); [[30,10],[54,50],[6,50]].forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=.45; ctx.beginPath(); [[20,50],[38,20],[56,50]].forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1; break; }
+
+    case 15: { // Fox
+      ctx.beginPath();
+      ctx.moveTo(30,48); ctx.quadraticCurveTo(14,36,12,24); ctx.lineTo(20,28);
+      ctx.quadraticCurveTo(22,14,30,18); ctx.quadraticCurveTo(38,14,40,28);
+      ctx.lineTo(48,24); ctx.quadraticCurveTo(46,36,30,48); ctx.fill();
+      ctx.fillStyle='white';
+      ctx.beginPath(); ctx.arc(24,28,2,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(36,28,2,0,Math.PI*2); ctx.fill(); break; }
+
+    case 16: { // Deer
+      ctx.beginPath(); ctx.ellipse(30,40,10,13,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(30,24,7,0,Math.PI*2); ctx.fill();
+      ctx.lineWidth=2;
+      [[24,20,18,10,14,8],[24,18,20,12,22,8],[36,20,42,10,46,8],[36,18,40,12,38,8]].forEach(p=>{
+        ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.quadraticCurveTo(p[2],p[3],p[4],p[5]); ctx.stroke();
+      });
+      ctx.fillStyle='white';
+      ctx.beginPath(); ctx.arc(28,23,1.5,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(32,23,1.5,0,Math.PI*2); ctx.fill(); break; }
+
+    case 17: { // Feather
+      ctx.globalAlpha=.85;
+      ctx.beginPath(); ctx.moveTo(32,52); ctx.quadraticCurveTo(14,40,18,16); ctx.quadraticCurveTo(30,8,44,22); ctx.quadraticCurveTo(50,36,32,52); ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(255,255,255,.65)'; ctx.lineWidth=1.3;
+      ctx.beginPath(); ctx.moveTo(32,52); ctx.lineTo(26,20); ctx.stroke(); break; }
+
+    case 18: { // Honeycomb
+      const drawHex = pts => { ctx.beginPath(); pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); ctx.fill(); };
+      drawHex([[30,12],[39,17],[39,27],[30,32],[21,27],[21,17]]);
+      ctx.globalAlpha=.65;
+      drawHex([[48,22],[57,27],[57,37],[48,42],[39,37],[39,27]]);
+      drawHex([[12,22],[21,27],[21,37],[12,42],[3,37],[3,27]]);
+      ctx.globalAlpha=.8;
+      drawHex([[30,32],[39,37],[39,47],[30,52],[21,47],[21,37]]);
+      ctx.globalAlpha=1; break; }
+
+    case 19: { // Spiral
+      ctx.lineWidth=3; ctx.fillStyle='transparent';
+      ctx.beginPath(); ctx.moveTo(30,30); ctx.quadraticCurveTo(30,20,38,22); ctx.quadraticCurveTo(46,24,44,34); ctx.quadraticCurveTo(42,44,30,44); ctx.quadraticCurveTo(16,44,14,30); ctx.quadraticCurveTo(12,16,30,14); ctx.quadraticCurveTo(48,12,50,32); ctx.stroke(); break; }
+
+    case 20: { // Arrow
+      ctx.lineWidth=4;
+      ctx.beginPath(); ctx.moveTo(8,30); ctx.lineTo(44,30); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(44,30); ctx.lineTo(32,19); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(44,30); ctx.lineTo(32,41); ctx.stroke(); break; }
+
+    case 21: { // Circle (bullseye)
+      ctx.lineWidth=5;
+      ctx.beginPath(); ctx.arc(30,30,18,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(30,30,8,0,Math.PI*2); ctx.fill(); break; }
+
+    case 22: { // Cross
+      ctx.beginPath(); ctx.roundRect(26,10,8,40,3); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(10,26,40,8,3); ctx.fill(); break; }
+
+    case 23: { // Flame
+      ctx.beginPath();
+      ctx.moveTo(30,52); ctx.quadraticCurveTo(14,40,18,26); ctx.quadraticCurveTo(22,16,26,20);
+      ctx.quadraticCurveTo(24,10,30,8); ctx.quadraticCurveTo(32,18,36,16);
+      ctx.quadraticCurveTo(44,24,42,36); ctx.quadraticCurveTo(46,30,44,24);
+      ctx.quadraticCurveTo(52,32,46,44); ctx.quadraticCurveTo(42,50,30,52);
+      ctx.fill(); break; }
+
+    case 24: { // Crown
+      ctx.beginPath();
+      ctx.moveTo(8,44); ctx.lineTo(8,26); ctx.lineTo(20,38); ctx.lineTo(30,12);
+      ctx.lineTo(40,38); ctx.lineTo(52,26); ctx.lineTo(52,44); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(8,44,44,7,2); ctx.fill(); break; }
+
+    default:
+      ctx.beginPath(); ctx.arc(30,30,18,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════
+   MOTIF LIST
+═══════════════════════════════════════════ */
+const MOTIFS = [
+  {id:1,name:'Sun'},{id:2,name:'Moon'},{id:3,name:'Star'},{id:4,name:'Flower'},
+  {id:5,name:'Leaf'},{id:6,name:'Butterfly'},{id:7,name:'Bird'},{id:8,name:'Heart'},
+  {id:9,name:'Diamond'},{id:10,name:'Snowflake'},{id:11,name:'Tree'},{id:12,name:'Mushroom'},
+  {id:13,name:'Wave'},{id:14,name:'Mountain'},{id:15,name:'Fox'},{id:16,name:'Deer'},
+  {id:17,name:'Feather'},{id:18,name:'Honeycomb'},{id:19,name:'Spiral'},{id:20,name:'Arrow'},
+  {id:21,name:'Circle'},{id:22,name:'Cross'},{id:23,name:'Flame'},{id:24,name:'Crown'},
+];
+
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+const MAX_MOTIFS  = 9;
+const MAX_COLORS  = 4;
+const CANVAS_SIZE = 540;
+const CELL_SIZE   = CANVAS_SIZE / 3;          // 180px per grid cell
+const MOTIF_SIZE  = Math.round(CELL_SIZE * 0.86); // ~155px — 7% border each side
+const THUMB_SIZE  = 52;
+
+let selectedMotifs = [];   // [{motifId, color, x, y}]
+let bgColor        = '#FFFFFF';
+let dragging       = null; // {idx, offX, offY}
+let libraryDrag    = null; // {motifId}
+let activeMotifIdx = null;
+
+const canvas = document.getElementById('blanketCanvas');
+const ctx    = canvas.getContext('2d');
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+function init() {
+  buildMotifGrid();
+  buildBgPalette();
+  buildColorPopup();
+  render();
+  updateRight();
+  bindCanvasEvents();
+  document.getElementById('resetBtn').addEventListener('click', resetDesign);
+  document.getElementById('previewBtn').addEventListener('click', downloadPreview);
+  document.getElementById('submitBtn').addEventListener('click', submitDesign);
+  // Use mousedown so it doesn't race with the cdot click that opens the popup
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('#cpop') && !e.target.closest('.cdot')) closeColorPopup();
+  });
+}
+
+/* ═══════════════════════════════════════════
+   BUILD MOTIF GRID
+   Each thumbnail is a small canvas drawn with drawMotif()
+═══════════════════════════════════════════ */
+function buildMotifGrid() {
+  const grid = document.getElementById('motifGrid');
+  grid.innerHTML = '';
+  MOTIFS.forEach(m => {
+    const wrap = document.createElement('div');
+    wrap.className = 'mthumb';
+    wrap.id = `mt-${m.id}`;
+    wrap.title = m.name;
+
+    const tc = document.createElement('canvas');
+    tc.width  = THUMB_SIZE;
+    tc.height = THUMB_SIZE;
+    const tctx = tc.getContext('2d');
+    drawMotif(tctx, m.id, THUMB_SIZE/2, THUMB_SIZE/2, THUMB_SIZE * 0.82, '#5c4a2a');
+    wrap.appendChild(tc);
+
+    // Track drag vs click: only treat as click if mouse barely moved
+    let downX=0, downY=0, didDrag=false;
+    wrap.addEventListener('mousedown', e => {
+      if (wrap.classList.contains('selected') || wrap.classList.contains('disabled')) return;
+      downX=e.clientX; downY=e.clientY; didDrag=false;
+      e.preventDefault();
+      libraryDrag = { motifId: m.id };
+      showGhost(m.id, e.clientX, e.clientY);
+    });
+    wrap.addEventListener('click', e => {
+      if (didDrag) { didDrag=false; return; } // suppress click after drag
+      addMotif(m.id);
+    });
+    wrap.addEventListener('touchstart', e => {
+      if (wrap.classList.contains('selected') || wrap.classList.contains('disabled')) return;
+      e.preventDefault();
+      const t=e.touches[0];
+      downX=t.clientX; downY=t.clientY; didDrag=false;
+      libraryDrag = { motifId: m.id };
+      showGhost(m.id, t.clientX, t.clientY);
+    }, {passive:false});
+
+    // expose didDrag setter so document mousemove can flag it
+    wrap._setDidDrag = () => { didDrag=true; };
+
+    grid.appendChild(wrap);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   PALETTES
+═══════════════════════════════════════════ */
+function buildBgPalette() {
+  const grid = document.getElementById('bgPalette');
+  PALETTE.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'swatch';
+    d.style.background = p.hex;
+    d.title = p.name;
+    d.addEventListener('click', () => {
+      grid.querySelectorAll('.swatch').forEach(s=>s.classList.remove('sel'));
+      d.classList.add('sel');
+      bgColor = p.hex;
+      render();
+    });
+    grid.appendChild(d);
+  });
+}
+
+function buildColorPopup() {
+  const grid = document.getElementById('cpopGrid');
+  PALETTE.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'cpsw';
+    d.style.background = p.hex;
+    d.title = p.name;
+    d.addEventListener('click', () => assignColor(p.hex));
+    grid.appendChild(d);
+  });
+}
+
+function openColorPopup(idx, dotEl) {
+  activeMotifIdx = idx;
+  const pop = document.getElementById('cpop');
+  pop.classList.add('open');          // must be visible to measure
+  const r   = dotEl.getBoundingClientRect();
+  const pw  = pop.offsetWidth  || 196;
+  const ph  = pop.offsetHeight || 210;
+  const vw  = window.innerWidth;
+  const vh  = window.innerHeight;
+
+  // Horizontal: centre on the dot, clamp so popup stays inside viewport
+  let left = r.left + r.width / 2 - pw / 2;
+  left = Math.max(6, Math.min(left, vw - pw - 6));
+
+  // Vertical: prefer below the dot, flip above if not enough room
+  let top = r.bottom + 6;
+  if (top + ph > vh - 6) top = r.top - ph - 6;
+  top = Math.max(6, top);
+
+  pop.style.left = left + 'px';
+  pop.style.top  = top  + 'px';
+}
+
+function closeColorPopup() {
+  document.getElementById('cpop').classList.remove('open');
+  activeMotifIdx = null;
+}
+
+function assignColor(hex) {
+  if (activeMotifIdx === null) return;
+  // check 4-color limit
+  const newSet = new Set(selectedMotifs.map((m,i) => i===activeMotifIdx ? hex : m.color));
+  if (newSet.size > MAX_COLORS) { setStatus('Max 4 colors for motifs.','err'); closeColorPopup(); return; }
+  selectedMotifs[activeMotifIdx].color = hex;
+  closeColorPopup();
+  render();
+  updateRight();
+}
+
+/* ═══════════════════════════════════════════
+   ADD / REMOVE MOTIFS
+═══════════════════════════════════════════ */
+function addMotif(id, x, y) {
+  if (selectedMotifs.length >= MAX_MOTIFS) { setStatus('Already 9 motifs — remove one first.','err'); return; }
+  if (selectedMotifs.find(m => m.motifId === id)) { setStatus('That motif is already placed.','err'); return; }
+  const idx = selectedMotifs.length;
+  if (x === undefined) {
+    // auto-place centred in grid cell
+    x = (idx % 3) * CELL_SIZE + CELL_SIZE / 2;
+    y = Math.floor(idx / 3) * CELL_SIZE + CELL_SIZE / 2;
+  }
+  selectedMotifs.push({ motifId:id, color: PALETTE[6].hex, x, y });
+  setStatus('');
+  render(); updateRight(); updateLibrary();
+}
+
+function removeMotif(idx) {
+  selectedMotifs.splice(idx, 1);
+  render(); updateRight(); updateLibrary(); setStatus('');
+}
+
+/* ═══════════════════════════════════════════
+   CANVAS RENDER — 100% synchronous
+═══════════════════════════════════════════ */
+function render() {
+  ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+  // background
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+  // subtle grid lines
+  ctx.strokeStyle = 'rgba(0,0,0,.07)';
+  ctx.lineWidth = 1;
+  [180, 360].forEach(v => {
+    ctx.beginPath(); ctx.moveTo(v,0); ctx.lineTo(v,CANVAS_SIZE); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,v); ctx.lineTo(CANVAS_SIZE,v); ctx.stroke();
+  });
+
+  // motifs
+  selectedMotifs.forEach(m => {
+    drawMotif(ctx, m.motifId, m.x, m.y, MOTIF_SIZE, m.color);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   DRAG — library → canvas  +  reposition on canvas
+═══════════════════════════════════════════ */
+const ghostCanvas = document.getElementById('drag-ghost');
+const ghostCtx    = ghostCanvas.getContext('2d');
+
+function startLibraryDrag(e, motifId) {
+  // kept for reference — logic moved into buildMotifGrid per-thumb listeners
+}
+
+function showGhost(motifId, cx, cy) {
+  ghostCtx.clearRect(0,0,72,72);
+  drawMotif(ghostCtx, motifId, 36, 36, 58, PALETTE[6].hex);
+  ghostCanvas.style.display = 'block';
+  ghostCanvas.style.left = (cx - 36) + 'px';
+  ghostCanvas.style.top  = (cy - 36) + 'px';
+  ghostCanvas.style.opacity = '0.75';
+}
+
+function hideGhost() {
+  ghostCanvas.style.display = 'none';
+}
+
+function isOverCanvas(e) {
+  const r = canvas.getBoundingClientRect();
+  return e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
+}
+
+function isOverPanel(e) {
+  const panel = document.querySelector('.panel-l');
+  const r = panel.getBoundingClientRect();
+  return e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
+}
+
+function setDropTarget(on) {
+  document.querySelector('.panel-l').classList.toggle('drop-target', on);
+}
+
+function canvasXY(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (CANVAS_SIZE / r.width),
+    y: (e.clientY - r.top)  * (CANVAS_SIZE / r.height),
+  };
+}
+
+function bindCanvasEvents() {
+  // pick up placed motif
+  canvas.addEventListener('mousedown', e => {
+    const {x,y} = canvasXY(e);
+    for (let i=selectedMotifs.length-1; i>=0; i--) {
+      const m = selectedMotifs[i];
+      if (Math.abs(x-m.x)<MOTIF_SIZE/2+10 && Math.abs(y-m.y)<MOTIF_SIZE/2+10) {
+        dragging = {idx:i, offX:x-m.x, offY:y-m.y, motifId:m.motifId, color:m.color};
+        canvas.style.cursor='grabbing';
+        return;
+      }
+    }
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (dragging) {
+      const {x,y} = canvasXY(e);
+      const h = MOTIF_SIZE/2;
+      // If dragged outside canvas, show ghost and highlight panel
+      if (!isOverCanvas(e)) {
+        // Show ghost following cursor when leaving canvas
+        ghostCtx.clearRect(0,0,72,72);
+        drawMotif(ghostCtx, dragging.motifId, 36, 36, 58, dragging.color);
+        ghostCanvas.style.display='block';
+        ghostCanvas.style.left=(e.clientX-36)+'px';
+        ghostCanvas.style.top=(e.clientY-36)+'px';
+        ghostCanvas.style.opacity='0.7';
+        setDropTarget(isOverPanel(e));
+        // Remove from canvas visually while outside
+        const snap = {...selectedMotifs[dragging.idx]};
+        selectedMotifs[dragging.idx] = {...snap, x:-999, y:-999}; // hide off-screen
+        render();
+        selectedMotifs[dragging.idx] = snap; // restore state
+      } else {
+        hideGhost();
+        setDropTarget(false);
+        selectedMotifs[dragging.idx].x = Math.min(CANVAS_SIZE-h, Math.max(h, x-dragging.offX));
+        selectedMotifs[dragging.idx].y = Math.min(CANVAS_SIZE-h, Math.max(h, y-dragging.offY));
+        render();
+      }
+      return;
+    }
+    if (libraryDrag) {
+      // Mark the source thumb as having dragged (suppress click)
+      const thumbEl = document.getElementById('mt-'+libraryDrag.motifId);
+      if (thumbEl && thumbEl._setDidDrag) thumbEl._setDidDrag();
+      ghostCanvas.style.left = (e.clientX-36)+'px';
+      ghostCanvas.style.top  = (e.clientY-36)+'px';
+      ghostCanvas.style.opacity = isOverCanvas(e) ? '0.85' : '0.45';
+    }
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (dragging) {
+      const d = dragging;
+      dragging = null;
+      canvas.style.cursor='default';
+      hideGhost();
+      setDropTarget(false);
+      if (!isOverCanvas(e)) {
+        // Dropped outside canvas — revert (remove from canvas)
+        removeMotif(d.idx);
+        setStatus('Motif returned to library.', 'ok');
+      }
+      // If over canvas, position was already updated live — nothing to do
+      return;
+    }
+    if (libraryDrag) {
+      const id = libraryDrag.motifId;
+      hideGhost(); libraryDrag=null;
+      if (isOverCanvas(e)) {
+        const {x,y} = canvasXY(e);
+        addMotif(id, x, y);
+      }
+    }
+  });
+
+  // touch
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.touches[0], {x,y} = canvasXY(t);
+    for (let i=selectedMotifs.length-1; i>=0; i--) {
+      const m=selectedMotifs[i];
+      if (Math.abs(x-m.x)<MOTIF_SIZE/2+10 && Math.abs(y-m.y)<MOTIF_SIZE/2+10) {
+        dragging={idx:i,offX:x-m.x,offY:y-m.y,motifId:m.motifId,color:m.color}; return;
+      }
+    }
+  },{passive:false});
+
+  document.addEventListener('touchmove', e => {
+    if (!dragging && !libraryDrag) return;
+    e.preventDefault();
+    const t=e.touches[0];
+    if (dragging) {
+      if (!isOverCanvas(t)) {
+        ghostCtx.clearRect(0,0,72,72);
+        drawMotif(ghostCtx, dragging.motifId, 36, 36, 58, dragging.color);
+        ghostCanvas.style.display='block';
+        ghostCanvas.style.left=(t.clientX-36)+'px';
+        ghostCanvas.style.top=(t.clientY-36)+'px';
+        ghostCanvas.style.opacity='0.7';
+        setDropTarget(isOverPanel(t));
+        const snap={...selectedMotifs[dragging.idx]};
+        selectedMotifs[dragging.idx]={...snap,x:-999,y:-999};
+        render();
+        selectedMotifs[dragging.idx]=snap;
+      } else {
+        hideGhost(); setDropTarget(false);
+        const {x,y}=canvasXY(t), h=MOTIF_SIZE/2;
+        selectedMotifs[dragging.idx].x=Math.min(CANVAS_SIZE-h,Math.max(h,x-dragging.offX));
+        selectedMotifs[dragging.idx].y=Math.min(CANVAS_SIZE-h,Math.max(h,y-dragging.offY));
+        render();
+      }
+    }
+    if (libraryDrag) {
+      ghostCanvas.style.left=(t.clientX-36)+'px';
+      ghostCanvas.style.top=(t.clientY-36)+'px';
+    }
+  },{passive:false});
+
+  document.addEventListener('touchend', e => {
+    if (dragging) {
+      const d=dragging, t=e.changedTouches[0];
+      dragging=null; hideGhost(); setDropTarget(false);
+      if (!isOverCanvas(t)) {
+        removeMotif(d.idx);
+        setStatus('Motif returned to library.','ok');
+      }
+      return;
+    }
+    if (libraryDrag) {
+      const t=e.changedTouches[0], id=libraryDrag.motifId;
+      hideGhost(); libraryDrag=null;
+      if (isOverCanvas(t)) { const {x,y}=canvasXY(t); addMotif(id,x,y); }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════
+   RIGHT PANEL
+═══════════════════════════════════════════ */
+function updateRight() {
+  const usedColors = new Set(selectedMotifs.map(m=>m.color));
+  document.getElementById('colorCount').textContent = usedColors.size;
+
+  // used color dots
+  const ud = document.getElementById('usedColors');
+  ud.innerHTML='';
+  usedColors.forEach(c => {
+    const d=document.createElement('div');
+    d.style.cssText=`width:20px;height:20px;border-radius:50%;background:${c};border:1px solid rgba(0,0,0,.15)`;
+    ud.appendChild(d);
+  });
+
+  // selected list
+  const list = document.getElementById('selList');
+  if (!selectedMotifs.length) {
+    list.innerHTML='<div class="empty">No motifs yet.<br>Pick 9 from the library.</div>';
+  } else {
+    list.innerHTML='';
+    selectedMotifs.forEach((m,i) => {
+      const motif = MOTIFS.find(mo=>mo.id===m.motifId);
+      const row = document.createElement('div');
+      row.className='sel-row';
+
+      // mini canvas thumbnail
+      const tc = document.createElement('canvas');
+      tc.width=28; tc.height=28;
+      const tctx=tc.getContext('2d');
+      drawMotif(tctx, m.motifId, 14, 14, 24, m.color);
+
+      row.appendChild(tc);
+      const nm=document.createElement('span'); nm.className='sel-name'; nm.textContent=motif.name;
+      const cd=document.createElement('div');  cd.className='cdot'; cd.style.background=m.color; cd.title='Change color';
+      const rb=document.createElement('button'); rb.className='rmv'; rb.textContent='✕'; rb.title='Remove';
+
+      cd.addEventListener('mousedown', e=>{ e.stopPropagation(); e.preventDefault(); });
+      cd.addEventListener('click', e=>{ e.stopPropagation(); openColorPopup(i,cd); });
+      rb.addEventListener('click', ()=>removeMotif(i));
+
+      row.append(nm,cd,rb);
+      list.appendChild(row);
+    });
+  }
+
+  const ready = selectedMotifs.length===MAX_MOTIFS;
+  document.getElementById('previewBtn').disabled = !ready;
+  document.getElementById('submitBtn').disabled  = !ready;
+  document.getElementById('motifCount').textContent = `${selectedMotifs.length} / ${MAX_MOTIFS}`;
+  document.getElementById('s1').classList.toggle('active', selectedMotifs.length<MAX_MOTIFS);
+  document.getElementById('s2').classList.toggle('active', ready && usedColors.size<=1);
+  document.getElementById('s3').classList.toggle('active', ready && usedColors.size>1);
+}
+
+function updateLibrary() {
+  const selIds = new Set(selectedMotifs.map(m=>m.motifId));
+  MOTIFS.forEach(m => {
+    const el=document.getElementById(`mt-${m.id}`);
+    const isSel=selIds.has(m.id);
+    el.classList.toggle('selected',isSel);
+    el.classList.toggle('disabled',!isSel && selectedMotifs.length>=MAX_MOTIFS);
+    let badge=el.querySelector('.cbadge');
+    if (isSel) {
+      if (!badge){ badge=document.createElement('div'); badge.className='cbadge'; el.appendChild(badge); }
+      badge.textContent = selectedMotifs.findIndex(sm=>sm.motifId===m.id)+1;
+    } else badge?.remove();
+  });
+}
+
+/* ═══════════════════════════════════════════
+   ACTIONS
+═══════════════════════════════════════════ */
+function resetDesign() {
+  if (!confirm('Reset your design?')) return;
+  selectedMotifs=[]; bgColor='#FFFFFF';
+  render(); updateRight(); updateLibrary(); setStatus('');
+}
+
+function downloadPreview() {
+  render();
+  const a=document.createElement('a');
+  a.download='biquette-preview.jpg';
+  a.href=canvas.toDataURL('image/jpeg',0.92);
+  a.click();
+}
+
+async function submitDesign() {
+  if (selectedMotifs.length!==MAX_MOTIFS) return;
+  showModal('saving');
+  render();
+  const jpg=canvas.toDataURL('image/jpeg',0.95);
+  const png=canvas.toDataURL('image/png');
+  try {
+    const res=await fetch(`${CONFIG.backendUrl}/api/submit-design`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({jpgData:jpg,pngData:png,design:selectedMotifs,bgColor,variantId:CONFIG.variantId,shopifyDomain:CONFIG.shopifyDomain}),
+    });
+    const data=await res.json();
+    if (!res.ok) throw new Error(data.error||'Server error');
+    showModal('success',data);
+  } catch(err){ showModal('error',{error:err.message}); }
+}
+
+function showModal(state,data) {
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('mUrls').innerHTML='';
+  document.getElementById('mClose').style.display='none';
+  document.getElementById('mCheckout').style.display='none';
+  if (state==='saving') {
+    document.getElementById('spinner').style.display='block';
+    document.getElementById('mTitle').textContent='Saving your design…';
+    document.getElementById('mBody').textContent='Uploading to Google Drive. Please wait.';
+  } else if (state==='success') {
+    document.getElementById('spinner').style.display='none';
+    document.getElementById('mTitle').textContent='🎉 Design Saved!';
+    document.getElementById('mBody').textContent='Your design is saved and linked to your order.';
+    if (data.tifUrl){ const d=document.createElement('div'); d.className='urlbox'; d.textContent='TIF: '+data.tifUrl; document.getElementById('mUrls').appendChild(d); }
+    if (data.jpgUrl){ const d=document.createElement('div'); d.className='urlbox'; d.textContent='JPG: '+data.jpgUrl; document.getElementById('mUrls').appendChild(d); }
+    document.getElementById('mClose').style.display='block';
+    document.getElementById('mCheckout').style.display='block';
+    if (data.checkoutUrl||CONFIG.returnUrl) document.getElementById('mCheckout').onclick=()=>location.href=data.checkoutUrl||CONFIG.returnUrl;
+  } else {
+    document.getElementById('spinner').style.display='none';
+    document.getElementById('mTitle').textContent='⚠ Something went wrong';
+    document.getElementById('mBody').textContent=data?.error||'Please try again.';
+    document.getElementById('mClose').style.display='block';
+  }
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+function setStatus(msg,type=''){ const b=document.getElementById('sbar'); b.textContent=msg; b.className='sbar '+type; }
+
+init();
+</script>
+</body>
+</html>
